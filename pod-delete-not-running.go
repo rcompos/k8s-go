@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
-	"bufio"
 	"path/filepath"
 	_ "regexp"
 	_ "strings"
@@ -46,47 +46,45 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Run for a single namespace or loop over all namespaces
 	if nsall == true {
-		// Get all namespaces in cluster
-		namespaces, err := clientset.CoreV1().Namespaces().List(metav1.ListOptions{})
-		if err != nil {
-			log.Fatalln("failed to get namespaces:", err)
-		}
-		for _, namespace := range namespaces.Items {
-			//fmt.Println("NS: ", namespace)
-			PodsAll := GetPods(namespace.Name, clientset, selectField)
-			PodsNum := len(PodsAll.Items)
-			if PodsNum > 0 {
-				if Delete != true {
-					ListPods(namespace.Name, clientset, PodsAll)
-				} else {
-					if Force != true {
-						ListPods(namespace.Name, clientset, PodsAll)
-						prompt()
-					}
-					DeletePods(namespace.Name, clientset, PodsAll)
-				}
-			}
+		// All namespaces
+		namespaces := GetNamespaces(clientset)
+		for _, thisName := range namespaces.Items {
+			HandlePrompt(thisName.Name, clientset, selectField, Delete, Force)
 		}
 	} else {
-		PodsAll := GetPods(ns, clientset, selectField)
-		PodsNum := len(PodsAll.Items)
-		//fmt.Println("Num: ", PodsNum)
-		if PodsNum > 0 {
-			if Delete != true {
-				ListPods(ns, clientset, PodsAll)
-			} else {
-				if Force != true {
-					ListPods(ns, clientset, PodsAll)
-					prompt()
-				}
-				DeletePods(ns, clientset, PodsAll)
-			}
-		}
+		// Single namespace
+		HandlePrompt(ns, clientset, selectField, Delete, Force)
 	}
 
 } // func main
+
+func HandlePrompt(ns string, c *kubernetes.Clientset, sf string, deleteIt, forceIt bool) *v1.PodList {
+	PodsAll := GetPods(ns, c, sf)
+	PodsNum := len(PodsAll.Items)
+	//fmt.Println("Num: ", PodsNum)
+	if PodsNum > 0 {
+		if deleteIt != true {
+			ListPods(ns, c, PodsAll)
+		} else {
+			if forceIt != true {
+				ListPods(ns, c, PodsAll)
+				prompt()
+			}
+			DeletePods(ns, c, PodsAll)
+		}
+	}
+	return PodsAll
+}
+
+func GetNamespaces(c *kubernetes.Clientset) *v1.NamespaceList {
+	namespaces, err := c.CoreV1().Namespaces().List(metav1.ListOptions{})
+	if err != nil {
+		log.Fatalln("failed to get namespaces:", err)
+	}
+	fmt.Println("Namespaces> ", namespaces)
+	return namespaces
+}
 
 func GetPods(ns string, c *kubernetes.Clientset, sf string) *v1.PodList {
 	pods, err := c.CoreV1().Pods(string(ns)).List(metav1.ListOptions{
@@ -99,7 +97,7 @@ func GetPods(ns string, c *kubernetes.Clientset, sf string) *v1.PodList {
 	return pods
 }
 
-func ListPods(ns string, c *kubernetes.Clientset, pods *v1.PodList ) {
+func ListPods(ns string, c *kubernetes.Clientset, pods *v1.PodList) {
 	for _, pod := range pods.Items {
 		pname := pod.Name
 		outc, err := json.Marshal(pname)
@@ -111,7 +109,7 @@ func ListPods(ns string, c *kubernetes.Clientset, pods *v1.PodList ) {
 	}
 }
 
-func DeletePods(ns string, c *kubernetes.Clientset, pods *v1.PodList ) {
+func DeletePods(ns string, c *kubernetes.Clientset, pods *v1.PodList) {
 	for _, pod := range pods.Items {
 		pname := pod.Name
 		outc, err := json.Marshal(pname)
@@ -137,13 +135,13 @@ func trimQuote(s string) string {
 }
 
 func prompt() {
-    fmt.Printf("-> Press Return key to delete pods.")
-    scanner := bufio.NewScanner(os.Stdin)
-    for scanner.Scan() {
-        break
-    }
-    if err := scanner.Err(); err != nil {
-        panic(err)
-    }
-    fmt.Println()
+	fmt.Printf("-> Press Return key to delete pods.")
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		break
+	}
+	if err := scanner.Err(); err != nil {
+		panic(err)
+	}
+	fmt.Println()
 }
