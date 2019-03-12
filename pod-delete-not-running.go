@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	_ "regexp"
-	_ "strings"
+	"strings"
 	//"reflect"
 
 	v1 "k8s.io/api/core/v1"
@@ -19,7 +19,7 @@ import (
 )
 
 //
-// List non-running Kubernetes pods
+// List and optionally delete Kubernetes pods of specified status
 //
 func main() {
 	var ns string
@@ -59,17 +59,16 @@ func main() {
 
 } // func main
 
-func HandlePrompt(ns string, c *kubernetes.Clientset, sf string, deleteIt, forceIt bool) *v1.PodList {
+func HandlePrompt(ns string, c *kubernetes.Clientset, sf string, del bool, force bool) *v1.PodList {
 	PodsAll := GetPods(ns, c, sf)
 	PodsNum := len(PodsAll.Items)
-	//fmt.Println("Num: ", PodsNum)
 	if PodsNum > 0 {
-		if deleteIt != true {
+		if del != true {
 			ListPods(ns, c, PodsAll)
 		} else {
-			if forceIt != true {
+			if force != true {
 				ListPods(ns, c, PodsAll)
-				prompt()
+				Prompter()
 			}
 			DeletePods(ns, c, PodsAll)
 		}
@@ -82,7 +81,6 @@ func GetNamespaces(c *kubernetes.Clientset) *v1.NamespaceList {
 	if err != nil {
 		log.Fatalln("failed to get namespaces:", err)
 	}
-	fmt.Println("Namespaces> ", namespaces)
 	return namespaces
 }
 
@@ -105,7 +103,7 @@ func ListPods(ns string, c *kubernetes.Clientset, pods *v1.PodList) {
 			panic(err)
 		}
 		TargetPod := trimQuote(string(outc))
-		fmt.Println("To be Deleted! ", ns, TargetPod)
+		fmt.Printf("To be deleted: %s %s\n", ns, TargetPod)
 	}
 }
 
@@ -134,14 +132,17 @@ func trimQuote(s string) string {
 	return s
 }
 
-func prompt() {
-	fmt.Printf("-> Press Return key to delete pods.")
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		break
+func Prompter() {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Printf("Type y to continue: ")
+	text, _ := reader.ReadString('\n')
+	answer := strings.TrimRight(text, "\n")
+	//fmt.Printf("answer: %s \n", answer)
+	if answer == "y" || answer == "Y" {
+		return
+	} else {
+		//Prompter() //For recursive prompting
+		log.Fatal("Exiting without action.")
 	}
-	if err := scanner.Err(); err != nil {
-		panic(err)
-	}
-	fmt.Println()
 }
+
