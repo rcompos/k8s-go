@@ -19,8 +19,9 @@ import (
 )
 
 //
-// List and optionally delete Kubernetes pods of specified status
-//
+// List and optionally delete Kubernetes pods 
+// of specified non-running status
+
 func main() {
 	var ns string
 	var nsall, Delete, Force bool
