@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"log"
+	"flag"
 	"path/filepath"
     v1 "k8s.io/api/core/v1"
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,19 +25,16 @@ func listPVCs(ns string, c *kubernetes.Clientset, p *v1.PersistentVolumeClaimLis
         quant := pvc.Spec.Resources.Requests[v1.ResourceStorage]
         //cap.Add(quant)
         fmt.Printf(template, pvc.Name, string(pvc.Status.Phase), quant.String())
+		total := pvc.Spec.Resources.Requests[v1.ResourceStorage]
+        fmt.Println("Total: ", total.String())
     }
 
-    fmt.Println("-----------------------------")
+    //fmt.Println("-----------------------------")
     //fmt.Printf("Total capacity claimed: %s\n", cap.String())
-    fmt.Println("-----------------------------")
+    //fmt.Println("-----------------------------")
 }
 
-//func GetPVCs(ns string, c *kubernetes.Clientset, sf string) *v1.PersistentVolumeClaimList {
 func GetPVCs(ns string, c *kubernetes.Clientset) *v1.PersistentVolumeClaimList {
-    //pvcs, err := c.CoreV1().PersistentVolumeClaims(string(ns)).List(metav1.ListOptions{
-        //FieldSelector: "status.phase!=Running",
-        //FieldSelector: sf,
-    //})
     pvcs, err := c.CoreV1().PersistentVolumeClaims(string(ns)).List(metav1.ListOptions{})
     if err != nil {
         log.Fatalln("failed to get PVCs:", err)
@@ -48,7 +46,9 @@ func GetPVCs(ns string, c *kubernetes.Clientset) *v1.PersistentVolumeClaimList {
 func main() {
 
 	var ns string 
-	ns = "default"
+	flag.StringVar(&ns, "n", "default", "Desired namespace")
+	flag.Parse()
+
     // create the clientset
 
     // Bootstrap k8s configuration from local Kubernetes config file
